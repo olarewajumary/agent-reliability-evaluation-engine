@@ -147,3 +147,11 @@ class FailureAnalysisReport(BaseModel):
     recurring_issues: list[IssueFrequency] = Field(
         default_factory=list
     )
+
+class EvaluationServiceResult(BaseModel):
+    """Return an evaluation report together with its persistent run ID."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str
+    report: BatchEvaluationReport
