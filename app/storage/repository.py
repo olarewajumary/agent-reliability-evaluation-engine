@@ -1,15 +1,15 @@
-
 import json
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.evaluation.schemas import BatchEvaluationReport, EvaluationReport
+from app.monitoring.schemas import ExecutionTrace
 from app.storage.database import SQLiteDatabase
-from app.storage.schemas import StoredEvaluationRun
+from app.storage.schemas import StoredEvaluationRun, StoredExecutionTrace
 
 
 class EvaluationHistoryRepository:
-    """Save and retrieve historical evaluation runs."""
+    """Persist evaluation runs, case reports, and execution traces."""
 
     def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
@@ -17,23 +17,20 @@ class EvaluationHistoryRepository:
     def save(
         self,
         report: BatchEvaluationReport,
+        traces_by_case_id: dict[str, list[ExecutionTrace]] | None = None,
     ) -> str:
-        """Persist a batch evaluation report and return its run ID."""
+        """Save a report and its traces atomically."""
 
         run_id = str(uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
+        traces_by_case_id = traces_by_case_id or {}
 
         with self.database.connect() as connection:
             connection.execute(
                 """
                 INSERT INTO evaluation_runs (
-                    run_id,
-                    created_at,
-                    total_cases,
-                    passed_cases,
-                    failed_cases,
-                    pass_rate,
-                    average_score,
+                    run_id, created_at, total_cases, passed_cases,
+                    failed_cases, pass_rate, average_score,
                     failure_counts_json
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -54,15 +51,9 @@ class EvaluationHistoryRepository:
                 connection.execute(
                     """
                     INSERT INTO evaluation_case_results (
-                        run_id,
-                        case_id,
-                        tool_selection_correct,
-                        execution_sequence_correct,
-                        task_status_correct,
-                        policy_compliant,
-                        score,
-                        passed,
-                        issues_json
+                        run_id, case_id, tool_selection_correct,
+                        execution_sequence_correct, task_status_correct,
+                        policy_compliant, score, passed, issues_json
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
@@ -79,12 +70,39 @@ class EvaluationHistoryRepository:
                     ),
                 )
 
+            for case_id, traces in traces_by_case_id.items():
+                for trace in traces:
+                    connection.execute(
+                        """
+                        INSERT INTO execution_traces (
+                            trace_id, run_id, case_id, execution_id,
+                            tool_name, status, started_at, finished_at,
+                            duration_ms, arguments_json, output_json,
+                            policy_decision, policy_reason, error
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(trace.trace_id),
+                            run_id,
+                            case_id,
+                            str(trace.execution_id),
+                            trace.tool_name,
+                            trace.status.value,
+                            trace.started_at.isoformat(),
+                            trace.finished_at.isoformat(),
+                            trace.duration_ms,
+                            json.dumps(trace.arguments),
+                            json.dumps(trace.output),
+                            trace.policy_decision,
+                            trace.policy_reason,
+                            trace.error,
+                        ),
+                    )
+
         return run_id
 
-    def get(
-        self,
-        run_id: str,
-    ) -> StoredEvaluationRun | None:
+    def get(self, run_id: str) -> StoredEvaluationRun | None:
         """Retrieve one evaluation run by its ID."""
 
         with self.database.connect() as connection:
@@ -122,9 +140,7 @@ class EvaluationHistoryRepository:
                 task_status_correct=bool(
                     case["task_status_correct"]
                 ),
-                policy_compliant=bool(
-                    case["policy_compliant"]
-                ),
+                policy_compliant=bool(case["policy_compliant"]),
                 score=case["score"],
                 passed=bool(case["passed"]),
                 issues=json.loads(case["issues_json"]),
@@ -140,9 +156,7 @@ class EvaluationHistoryRepository:
             failed_cases=row["failed_cases"],
             pass_rate=row["pass_rate"],
             average_score=row["average_score"],
-            failure_counts=json.loads(
-                row["failure_counts_json"]
-            ),
+            failure_counts=json.loads(row["failure_counts_json"]),
             reports=reports,
         )
 
@@ -174,8 +188,53 @@ class EvaluationHistoryRepository:
 
         for row in rows:
             run = self.get(row["run_id"])
-
             if run is not None:
                 runs.append(run)
 
         return runs
+
+    def list_traces(
+        self,
+        run_id: str,
+        case_id: str | None = None,
+    ) -> list[StoredExecutionTrace]:
+        """Retrieve traces for a run, optionally filtered by case."""
+
+        query = """
+            SELECT *
+            FROM execution_traces
+            WHERE run_id = ?
+        """
+        parameters: list[str] = [run_id]
+
+        if case_id is not None:
+            query += " AND case_id = ?"
+            parameters.append(case_id)
+
+        query += " ORDER BY started_at ASC, trace_id ASC"
+
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                query,
+                parameters,
+            ).fetchall()
+
+        return [
+            StoredExecutionTrace(
+                trace_id=row["trace_id"],
+                run_id=row["run_id"],
+                case_id=row["case_id"],
+                execution_id=row["execution_id"],
+                tool_name=row["tool_name"],
+                status=row["status"],
+                started_at=datetime.fromisoformat(row["started_at"]),
+                finished_at=datetime.fromisoformat(row["finished_at"]),
+                duration_ms=row["duration_ms"],
+                arguments=json.loads(row["arguments_json"]),
+                output=json.loads(row["output_json"]),
+                policy_decision=row["policy_decision"],
+                policy_reason=row["policy_reason"],
+                error=row["error"],
+            )
+            for row in rows
+        ]

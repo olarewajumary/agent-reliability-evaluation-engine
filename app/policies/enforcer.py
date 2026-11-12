@@ -5,7 +5,7 @@ from app.tools.schemas import ToolRequest, ToolResult, ToolStatus
 
 
 class PolicyEnforcer:
-    """Enforce policy decisions before executing tools."""
+    """Enforce tool policies before allowing execution."""
 
     def __init__(
         self,
@@ -16,20 +16,18 @@ class PolicyEnforcer:
         self.executor = executor
 
     def execute(self, request: ToolRequest) -> ToolResult:
-        """Evaluate policy and execute only permitted actions."""
-
         evaluation = self.policy_engine.evaluate(request)
 
-        # Block actions that are not permitted.
         if evaluation.decision == PolicyDecision.DENY:
             return ToolResult(
                 execution_id=request.execution_id,
                 tool_name=request.tool_name,
                 status=ToolStatus.FAILURE,
                 error=f"Policy denied execution: {evaluation.reason}",
+                policy_decision=evaluation.decision.value,
+                policy_reason=evaluation.reason,
             )
 
-        # Pause actions that require human approval.
         if evaluation.decision == PolicyDecision.REQUIRE_APPROVAL:
             return ToolResult(
                 execution_id=request.execution_id,
@@ -39,7 +37,15 @@ class PolicyEnforcer:
                     "decision": evaluation.decision.value,
                     "reason": evaluation.reason,
                 },
+                policy_decision=evaluation.decision.value,
+                policy_reason=evaluation.reason,
             )
 
-        # Execute only when policy explicitly allows the action.
-        return self.executor.execute(request)
+        result = self.executor.execute(request)
+
+        return result.model_copy(
+            update={
+                "policy_decision": evaluation.decision.value,
+                "policy_reason": evaluation.reason,
+            }
+        )

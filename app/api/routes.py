@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.api.dependencies import get_scenario_runner
 from app.api.schemas import ScenarioEvaluationRunRequest
 from app.evaluation.scenario_runner import ScenarioRunner
+from app.storage.schemas import StoredEvaluationRun, StoredExecutionTrace
 
 from app.agent.schemas import AgentExecutionResult
 from app.api.dependencies import (
@@ -173,3 +174,31 @@ def run_scenario_evaluation(
             status_code=422,
             detail=str(exc),
         ) from exc
+
+
+@router.get(
+    "/{run_id}/traces",
+    response_model=list[StoredExecutionTrace],
+)
+def list_execution_traces(
+    run_id: str,
+    repository: Annotated[
+        EvaluationHistoryRepository,
+        Depends(get_evaluation_repository),
+    ],
+    case_id: str | None = Query(default=None),
+):
+    """Retrieve persisted execution traces for an evaluation run."""
+
+    run = repository.get(run_id)
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Evaluation run not found.",
+        )
+
+    return repository.list_traces(
+        run_id=run_id,
+        case_id=case_id,
+    )

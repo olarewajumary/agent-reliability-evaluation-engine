@@ -1,4 +1,3 @@
-
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -23,8 +22,6 @@ class SQLiteDatabase:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        """Open a connection and manage its transaction."""
-
         connection = sqlite3.connect(str(self.database_path))
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
@@ -39,8 +36,6 @@ class SQLiteDatabase:
             connection.close()
 
     def initialize(self) -> None:
-        """Create the evaluation history tables if necessary."""
-
         with self.connect() as connection:
             connection.execute(
                 """
@@ -85,5 +80,46 @@ class SQLiteDatabase:
                 CREATE INDEX IF NOT EXISTS
                 idx_evaluation_runs_created_at
                 ON evaluation_runs(created_at)
+                """
+            )
+
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS execution_traces (
+                    trace_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL,
+                    case_id TEXT NOT NULL,
+                    execution_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT NOT NULL,
+                    duration_ms REAL NOT NULL,
+                    arguments_json TEXT NOT NULL,
+                    output_json TEXT NOT NULL,
+                    policy_decision TEXT,
+                    policy_reason TEXT,
+                    error TEXT,
+
+                    FOREIGN KEY (run_id, case_id)
+                        REFERENCES evaluation_case_results(run_id, case_id)
+                        ON DELETE CASCADE
+                )
+                """
+            )
+
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS
+                idx_execution_traces_run_case
+                ON execution_traces(run_id, case_id)
+                """
+            )
+
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS
+                idx_execution_traces_execution_id
+                ON execution_traces(execution_id)
                 """
             )

@@ -1,10 +1,12 @@
 
 from datetime import datetime
+from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.evaluation.schemas import EvaluationReport
-
+from app.tools.schemas import ToolStatus
 
 class StoredEvaluationRun(BaseModel):
     """Represent an evaluation run retrieved from persistent storage."""
@@ -28,3 +30,24 @@ class StoredEvaluationRun(BaseModel):
     reports: list[EvaluationReport] = Field(
         default_factory=list
     )
+
+
+class StoredExecutionTrace(BaseModel):
+    """An execution trace retrieved from persistent storage."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    trace_id: UUID
+    run_id: str
+    case_id: str
+    execution_id: UUID
+    tool_name: str
+    status: ToolStatus
+    started_at: datetime
+    finished_at: datetime
+    duration_ms: float
+    arguments: dict[str, Any]
+    output: dict[str, Any]
+    policy_decision: str | None = None
+    policy_reason: str | None = None
+    error: str | None = None
