@@ -19,6 +19,11 @@ from app.evaluation.schemas import (
     EvaluationServiceResult,
     FailureAnalysisReport,
 )
+from fastapi import Query
+from app.monitoring.diagnostics import (
+    AgentReliabilityDiagnostics,
+    RunDiagnosticsReport,
+)
 from app.evaluation.service import EvaluationService
 from app.storage.repository import EvaluationHistoryRepository
 from app.storage.schemas import StoredEvaluationRun
@@ -201,4 +206,32 @@ def list_execution_traces(
     return repository.list_traces(
         run_id=run_id,
         case_id=case_id,
+    )
+
+
+@router.get(
+    "/evaluations/{run_id}/diagnostics",
+    response_model=RunDiagnosticsReport,
+)
+def get_evaluation_diagnostics(
+    run_id: str,
+    slow_threshold_ms: float = Query(default=1000.0, gt=0),
+    repository=Depends(get_evaluation_repository),
+):
+    run = repository.get(run_id)
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Evaluation run not found.",
+        )
+
+    traces = repository.list_traces(run_id)
+
+    diagnostics = AgentReliabilityDiagnostics()
+
+    return diagnostics.analyze(
+        run_id=run_id,
+        traces=traces,
+        slow_threshold_ms=slow_threshold_ms,
     )
