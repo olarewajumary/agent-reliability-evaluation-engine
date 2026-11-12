@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -75,3 +74,76 @@ class EvaluationReport(BaseModel):
     passed: bool
 
     issues: list[str] = Field(default_factory=list)
+
+
+class BatchEvaluationReport(BaseModel):
+    """Summarize the results of evaluating multiple agent tasks."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    total_cases: int = Field(ge=0)
+
+    passed_cases: int = Field(ge=0)
+
+    failed_cases: int = Field(ge=0)
+
+    pass_rate: float = Field(ge=0, le=100)
+
+    average_score: float = Field(ge=0, le=100)
+
+    failure_counts: dict[str, int] = Field(
+        default_factory=dict,
+    )
+
+    reports: list[EvaluationReport] = Field(
+        default_factory=list,
+    )
+
+
+class FailureCategory(BaseModel):
+    """Summarize failures for one evaluation dimension."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: str
+    failed_cases: int = Field(ge=0)
+    failure_rate: float = Field(ge=0, le=100)
+
+
+class FailedCaseSummary(BaseModel):
+    """Describe an individual evaluation case that failed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str
+    score: float = Field(ge=0, le=100)
+    issues: list[str] = Field(default_factory=list)
+
+
+class IssueFrequency(BaseModel):
+    """Count how often a specific evaluation issue occurs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    issue: str
+    occurrences: int = Field(ge=1)
+
+
+class FailureAnalysisReport(BaseModel):
+    """Provide an overall analysis of batch evaluation failures."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    total_cases: int = Field(ge=0)
+    passed_cases: int = Field(ge=0)
+    failed_cases: int = Field(ge=0)
+    pass_rate: float = Field(ge=0, le=100)
+    failure_categories: list[FailureCategory] = Field(
+        default_factory=list
+    )
+    failed_case_details: list[FailedCaseSummary] = Field(
+        default_factory=list
+    )
+    recurring_issues: list[IssueFrequency] = Field(
+        default_factory=list
+    )
