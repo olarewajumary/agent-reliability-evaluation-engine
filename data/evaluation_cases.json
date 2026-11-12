@@ -1,0 +1,32 @@
+[
+  {
+    "case_id": "case_001",
+    "expected_tool_sequence": ["github_search"],
+    "expected_status": "completed"
+  },
+  {
+    "case_id": "case_002",
+    "expected_tool_sequence": ["slack_search", "github_search"],
+    "expected_status": "completed"
+  },
+  {
+    "case_id": "case_003",
+    "expected_tool_sequence": ["create_ticket"],
+    "expected_status": "requires_approval"
+  },
+  {
+    "case_id": "case_004",
+    "expected_tool_sequence": ["github_search"],
+    "expected_status": "failed"
+  },
+  {
+    "case_id": "case_005",
+    "expected_tool_sequence": [],
+    "expected_status": "completed"
+  },
+  {
+    "case_id": "case_006",
+    "expected_tool_sequence": ["slack_search", "github_search", "create_ticket"],
+    "expected_status": "requires_approval"
+  }
+]
