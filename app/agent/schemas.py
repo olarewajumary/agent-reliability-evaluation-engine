@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
@@ -50,3 +49,36 @@ class AgentTask(BaseModel):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+
+
+class AgentExecutionResult(BaseModel):
+    """Represent the outcome of an agent task execution."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: UUID
+
+    status: str = Field(
+        min_length=1,
+        description="Overall outcome of the agent task.",
+    )
+
+    tool_results: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Results returned by the tools used during the task.",
+    )
+
+    message: str = Field(
+        min_length=1,
+        description="A summary of the task execution.",
+    )
+
+    @field_validator("status", "message")
+    @classmethod
+    def values_must_not_be_blank(cls, value: str) -> str:
+        normalized = value.strip()
+
+        if not normalized:
+            raise ValueError("Value must not be blank.")
+
+        return normalized
