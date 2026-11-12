@@ -1,5 +1,6 @@
-
 from fastapi import FastAPI
+
+from app.api.routes import router as evaluation_router
 
 
 app = FastAPI(
@@ -11,10 +12,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(evaluation_router)
+
 
 @app.get("/")
 async def root():
     """Return basic information about the application."""
+
     return {
         "name": "Agent Reliability & Evaluation Engine",
         "status": "running",
@@ -26,6 +30,5 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Check whether the application is healthy."""
-    return {
-        "status": "healthy",
-    }
+
+    return {"status": "healthy"}

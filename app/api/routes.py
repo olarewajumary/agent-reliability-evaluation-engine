@@ -1,0 +1,131 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.agent.schemas import AgentExecutionResult
+from app.api.dependencies import (
+    get_evaluation_repository,
+    get_evaluation_service,
+)
+from app.api.schemas import EvaluationRunRequest
+from app.evaluation.analysis import FailureAnalyzer
+from app.evaluation.schemas import (
+    BatchEvaluationReport,
+    EvaluationServiceResult,
+    FailureAnalysisReport,
+)
+from app.evaluation.service import EvaluationService
+from app.storage.repository import EvaluationHistoryRepository
+from app.storage.schemas import StoredEvaluationRun
+
+
+router = APIRouter(
+    prefix="/evaluations",
+    tags=["Evaluations"],
+)
+
+
+@router.post(
+    "/run",
+    response_model=EvaluationServiceResult,
+    status_code=201,
+)
+def run_evaluation(
+    request: EvaluationRunRequest,
+    service: Annotated[
+        EvaluationService,
+        Depends(get_evaluation_service),
+    ],
+):
+    """Evaluate agent executions and persist the results."""
+
+    try:
+        return service.run(
+            cases=request.cases,
+            results_by_case_id=request.results_by_case_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "",
+    response_model=list[StoredEvaluationRun],
+)
+def list_evaluation_runs(
+    repository: Annotated[
+        EvaluationHistoryRepository,
+        Depends(get_evaluation_repository),
+    ],
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    """Return historical evaluation runs."""
+
+    return repository.list_runs(
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/{run_id}",
+    response_model=StoredEvaluationRun,
+)
+def get_evaluation_run(
+    run_id: str,
+    repository: Annotated[
+        EvaluationHistoryRepository,
+        Depends(get_evaluation_repository),
+    ],
+):
+    """Retrieve a specific evaluation run."""
+
+    run = repository.get(run_id)
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Evaluation run not found.",
+        )
+
+    return run
+
+
+@router.get(
+    "/{run_id}/analysis",
+    response_model=FailureAnalysisReport,
+)
+def analyze_evaluation_run(
+    run_id: str,
+    repository: Annotated[
+        EvaluationHistoryRepository,
+        Depends(get_evaluation_repository),
+    ],
+):
+    """Analyze failures from a previously stored evaluation run."""
+
+    stored_run = repository.get(run_id)
+
+    if stored_run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Evaluation run not found.",
+        )
+
+    batch_report = BatchEvaluationReport(
+        total_cases=stored_run.total_cases,
+        passed_cases=stored_run.passed_cases,
+        failed_cases=stored_run.failed_cases,
+        pass_rate=stored_run.pass_rate,
+        average_score=stored_run.average_score,
+        failure_counts=stored_run.failure_counts,
+        reports=stored_run.reports,
+    )
+
+    analyzer = FailureAnalyzer()
+
+    return analyzer.analyze(batch_report)
