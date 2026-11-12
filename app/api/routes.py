@@ -2,6 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.api.dependencies import get_scenario_runner
+from app.api.schemas import ScenarioEvaluationRunRequest
+from app.evaluation.scenario_runner import ScenarioRunner
+
 from app.agent.schemas import AgentExecutionResult
 from app.api.dependencies import (
     get_evaluation_repository,
@@ -129,3 +133,43 @@ def analyze_evaluation_run(
     analyzer = FailureAnalyzer()
 
     return analyzer.analyze(batch_report)
+
+
+@router.post(
+    "/scenarios/run",
+    response_model=EvaluationServiceResult,
+    status_code=201,
+)
+def run_scenario_evaluation(
+    request: ScenarioEvaluationRunRequest,
+    service: Annotated[
+        EvaluationService,
+        Depends(get_evaluation_service),
+    ],
+    scenario_runner: Annotated[
+        ScenarioRunner,
+        Depends(get_scenario_runner),
+    ],
+):
+    """Execute scenarios, evaluate results, and persist the report."""
+
+    try:
+        results_by_case_id = scenario_runner.run(
+            request.scenarios
+        )
+
+        cases = [
+            scenario.case
+            for scenario in request.scenarios
+        ]
+
+        return service.run(
+            cases=cases,
+            results_by_case_id=results_by_case_id,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
