@@ -15,7 +15,7 @@ class AgentOrchestrator:
         task: AgentTask,
         tool_requests: list[ToolRequest],
     ) -> AgentExecutionResult:
-        """Execute a sequence of tool requests for a task."""
+        """Execute tool requests while respecting approval requirements."""
 
         collected_results = []
 
@@ -28,6 +28,10 @@ class AgentOrchestrator:
                     "trace": trace.model_dump(mode="json"),
                 }
             )
+
+            # Stop the sequence if human approval is required.
+            if result.status == ToolStatus.REQUIRES_APPROVAL:
+                break
 
         # Determine the overall task status.
         statuses = [

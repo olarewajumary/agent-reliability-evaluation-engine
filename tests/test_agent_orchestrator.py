@@ -240,7 +240,7 @@ def test_orchestrator_handles_approval_required_action(setup_orchestrator):
     )
     assert len(recorder.get_traces()) == 1
 
-    
+
 def test_orchestrator_handles_empty_tool_request_list(setup_orchestrator):
     orchestrator, recorder = setup_orchestrator
 
@@ -253,3 +253,39 @@ def test_orchestrator_handles_empty_tool_request_list(setup_orchestrator):
     assert result.status == "completed"
     assert result.tool_results == []
     assert recorder.get_traces() == []
+
+
+def test_orchestrator_stops_after_approval_is_required(
+    setup_orchestrator,
+):
+    orchestrator, recorder = setup_orchestrator
+
+    recorder.executor.policy_engine.register_policy(
+        ToolPolicy(
+            tool_name="approval_tool",
+            decision=PolicyDecision.REQUIRE_APPROVAL,
+            reason="Human approval is required.",
+        )
+    )
+
+    task = AgentTask(
+        objective="Request approval before continuing."
+    )
+
+    requests = [
+        ToolRequest(tool_name="approval_tool"),
+        ToolRequest(tool_name="github_search"),
+    ]
+
+    result = orchestrator.execute(task, requests)
+
+    assert result.status == "requires_approval"
+
+    # Only the first request should have been executed.
+    assert len(result.tool_results) == 1
+    assert len(recorder.get_traces()) == 1
+
+    assert (
+        result.tool_results[0]["result"]["status"]
+        == "requires_approval"
+    )
