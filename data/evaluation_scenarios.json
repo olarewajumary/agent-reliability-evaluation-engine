@@ -1,0 +1,240 @@
+
+[
+  {
+    "case": {"case_id":"case_001","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Find evidence explaining the checkout 502 error.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"502"}},
+      {"tool_name":"github_search","arguments":{"query":"502"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001","github:142"]
+  },
+  {
+    "case": {"case_id":"case_002","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Investigate all simulated checkout-related reports.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"checkout"}},
+      {"tool_name":"github_search","arguments":{"query":"checkout"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001","slack:slack-msg-002","github:142","github:163"]
+  },
+  {
+    "case": {"case_id":"case_003","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Investigate payment-related reports across Slack and GitHub.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"payment"}},
+      {"tool_name":"github_search","arguments":{"query":"payment"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001","slack:slack-msg-003","github:142","github:157"]
+  },
+  {
+    "case": {"case_id":"case_004","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Find evidence about duplicate payment requests.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"duplicate"}},
+      {"tool_name":"github_search","arguments":{"query":"duplicate"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-003","github:157"]
+  },
+  {
+    "case": {"case_id":"case_005","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Investigate the payment retry behaviour.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"retry"}},
+      {"tool_name":"github_search","arguments":{"query":"retry"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-003","github:157"]
+  },
+  {
+    "case": {"case_id":"case_006","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+    "objective":"Find the issue concerning checkout error logging.",
+    "context":{"repository":"checkout"},
+    "tool_requests":[
+      {"tool_name":"github_search","arguments":{"query":"logging"}}
+    ],
+    "expected_evidence_ids":["github:163"]
+  },
+  {
+    "case": {"case_id":"case_007","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+    "objective":"Find the issue describing intermittent checkout failures.",
+    "context":{"repository":"checkout"},
+    "tool_requests":[
+      {"tool_name":"github_search","arguments":{"query":"intermittently"}}
+    ],
+    "expected_evidence_ids":["github:142"]
+  },
+  {
+    "case": {"case_id":"case_008","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+    "objective":"Find the support report mentioning multiple users.",
+    "context":{"team":"support"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"users"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-002"]
+  },
+  {
+    "case": {"case_id":"case_009","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Find reports mentioning payment confirmation.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"confirmation"}},
+      {"tool_name":"github_search","arguments":{"query":"confirmation"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001","github:142"]
+  },
+  {
+    "case": {"case_id":"case_010","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Find evidence describing checkout failures.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"failures"}},
+      {"tool_name":"github_search","arguments":{"query":"failures"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-002","github:163"]
+  },
+  {
+    "case": {"case_id":"case_011","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Cross-check the 502 error in both sources.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"502"}},
+      {"tool_name":"github_search","arguments":{"query":"502"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001","github:142"]
+  },
+  {
+    "case": {"case_id":"case_012","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Find records connecting payment retries to duplicate requests.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"payment retry"}},
+      {"tool_name":"github_search","arguments":{"query":"payment retry"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-003","github:157"]
+  },
+  {
+    "case": {"case_id":"case_013","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+    "objective":"Find the Slack report about several users experiencing problems.",
+    "context":{"team":"support"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"several users"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-002"]
+  },
+  {
+    "case": {"case_id":"case_014","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+    "objective":"Find the GitHub issue mentioning diagnostic information.",
+    "context":{"repository":"checkout"},
+    "tool_requests":[
+      {"tool_name":"github_search","arguments":{"query":"diagnostic"}}
+    ],
+    "expected_evidence_ids":["github:163"]
+  },
+  {
+    "case": {"case_id":"case_015","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Find evidence about duplicate requests across both sources.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"duplicate requests"}},
+      {"tool_name":"github_search","arguments":{"query":"duplicate requests"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-003","github:157"]
+  },
+  {
+    "case": {"case_id":"case_016","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+    "objective":"Combine Slack checkout reports with GitHub logging evidence.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"checkout"}},
+      {"tool_name":"github_search","arguments":{"query":"logging"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001","slack:slack-msg-002","github:163"]
+  },
+  {
+    "case": {"case_id":"case_017","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+    "objective":"Search Slack for a term that has no matching records.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"nonexistent"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001"]
+  },
+  {
+    "case": {"case_id":"case_018","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+    "objective":"Search GitHub for an issue that does not match the query.",
+    "context":{"repository":"checkout"},
+    "tool_requests":[
+      {"tool_name":"github_search","arguments":{"query":"nonexistent"}}
+    ],
+    "expected_evidence_ids":["github:142"]
+  },
+  {
+    "case": {"case_id":"case_019","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+    "objective":"Search payment messages while checking for an unrelated support report.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"payment"}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-002"]
+  },
+  {
+    "case": {"case_id":"case_020","expected_tool_sequence":["slack_search"],"expected_status":"failed"},
+    "objective":"Verify that an empty Slack search query is rejected.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":""}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001"]
+  },
+  {
+    "case": {"case_id":"case_021","expected_tool_sequence":["github_search"],"expected_status":"failed"},
+    "objective":"Verify that an empty GitHub search query is rejected.",
+    "context":{"repository":"checkout"},
+    "tool_requests":[
+      {"tool_name":"github_search","arguments":{"query":""}}
+    ],
+    "expected_evidence_ids":["github:142"]
+  },
+  {
+    "case": {"case_id":"case_022","expected_tool_sequence":[],"expected_status":"completed"},
+    "objective":"Evaluate a task that executes without invoking any tools.",
+    "context":{"team":"engineering"},
+    "tool_requests":[],
+    "expected_evidence_ids":["slack:slack-msg-001"]
+  },
+  {
+    "case": {"case_id":"case_023","expected_tool_sequence":["slack_search","create_ticket"],"expected_status":"requires_approval"},
+    "objective":"Find checkout evidence and request a ticket for investigation.",
+    "context":{"team":"engineering"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"502"}},
+      {"tool_name":"create_ticket","arguments":{"title":"Investigate checkout 502 errors","description":"Investigate the reported checkout 502 error after payment confirmation."}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-001"]
+  },
+  {
+    "case": {"case_id":"case_024","expected_tool_sequence":["slack_search","create_ticket"],"expected_status":"requires_approval"},
+    "objective":"Find payment retry evidence and request a ticket for duplicate requests.",
+    "context":{"team":"payments"},
+    "tool_requests":[
+      {"tool_name":"slack_search","arguments":{"query":"retry"}},
+      {"tool_name":"create_ticket","arguments":{"title":"Investigate duplicate payment requests","description":"Investigate the payment retry behaviour that may cause duplicate requests."}}
+    ],
+    "expected_evidence_ids":["slack:slack-msg-003"]
+  },
+  {
+    "case": {"case_id":"case_025","expected_tool_sequence":["github_search","create_ticket"],"expected_status":"requires_approval"},
+    "objective":"Find the GitHub checkout issue and request a follow-up ticket.",
+    "context":{"repository":"checkout"},
+    "tool_requests":[
+      {"tool_name":"github_search","arguments":{"query":"502"}},
+      {"tool_name":"create_ticket","arguments":{"title":"Review checkout API 502 issue","description":"Review the GitHub issue describing intermittent 502 responses after payment confirmation."}}
+    ],
+    "expected_evidence_ids":["github:142"]
+  }
+]

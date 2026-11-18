@@ -1,32 +1,28 @@
+
 [
-  {
-    "case_id": "case_001",
-    "expected_tool_sequence": ["github_search"],
-    "expected_status": "completed"
-  },
-  {
-    "case_id": "case_002",
-    "expected_tool_sequence": ["slack_search", "github_search"],
-    "expected_status": "completed"
-  },
-  {
-    "case_id": "case_003",
-    "expected_tool_sequence": ["create_ticket"],
-    "expected_status": "requires_approval"
-  },
-  {
-    "case_id": "case_004",
-    "expected_tool_sequence": ["github_search"],
-    "expected_status": "failed"
-  },
-  {
-    "case_id": "case_005",
-    "expected_tool_sequence": [],
-    "expected_status": "completed"
-  },
-  {
-    "case_id": "case_006",
-    "expected_tool_sequence": ["slack_search", "github_search", "create_ticket"],
-    "expected_status": "requires_approval"
-  }
+  {"case_id":"case_001","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_002","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_003","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_004","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_005","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_006","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+  {"case_id":"case_007","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+  {"case_id":"case_008","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+  {"case_id":"case_009","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_010","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_011","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_012","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_013","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+  {"case_id":"case_014","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+  {"case_id":"case_015","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_016","expected_tool_sequence":["slack_search","github_search"],"expected_status":"completed"},
+  {"case_id":"case_017","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+  {"case_id":"case_018","expected_tool_sequence":["github_search"],"expected_status":"completed"},
+  {"case_id":"case_019","expected_tool_sequence":["slack_search"],"expected_status":"completed"},
+  {"case_id":"case_020","expected_tool_sequence":["slack_search"],"expected_status":"failed"},
+  {"case_id":"case_021","expected_tool_sequence":["github_search"],"expected_status":"failed"},
+  {"case_id":"case_022","expected_tool_sequence":[],"expected_status":"completed"},
+  {"case_id":"case_023","expected_tool_sequence":["slack_search","create_ticket"],"expected_status":"requires_approval"},
+  {"case_id":"case_024","expected_tool_sequence":["slack_search","create_ticket"],"expected_status":"requires_approval"},
+  {"case_id":"case_025","expected_tool_sequence":["github_search","create_ticket"],"expected_status":"requires_approval"}
 ]
