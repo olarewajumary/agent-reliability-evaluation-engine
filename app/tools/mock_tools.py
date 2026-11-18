@@ -13,16 +13,19 @@ class SlackSearchTool(BaseTool):
     def __init__(self) -> None:
         self.messages = [
             {
+                "message_id": "slack-msg-001",
                 "channel": "engineering",
                 "text": "Checkout fails with a 502 error after payment confirmation.",
                 "author": "developer_01",
             },
             {
+                "message_id": "slack-msg-002",
                 "channel": "support",
                 "text": "Several users reported checkout failures today.",
                 "author": "support_01",
             },
             {
+                "message_id": "slack-msg-003",
                 "channel": "engineering",
                 "text": "Payment retry logic may be causing duplicate requests.",
                 "author": "developer_02",

@@ -22,6 +22,7 @@ from app.tools.mock_tools import (
     SlackSearchTool,
 )
 from app.tools.registry import ToolRegistry
+from app.evaluation.retrieval_evaluator import RetrievalEvaluator
 
 
 @lru_cache
@@ -92,3 +93,7 @@ def get_scenario_runner() -> ScenarioRunner:
     orchestrator = AgentOrchestrator(recorder)
 
     return ScenarioRunner(orchestrator)
+
+
+def get_retrieval_evaluator() -> RetrievalEvaluator:
+    return RetrievalEvaluator()

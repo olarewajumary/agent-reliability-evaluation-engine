@@ -2,31 +2,36 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.dependencies import get_scenario_runner
-from app.api.schemas import ScenarioEvaluationRunRequest
-from app.evaluation.scenario_runner import ScenarioRunner
-from app.storage.schemas import StoredEvaluationRun, StoredExecutionTrace
-
-from app.agent.schemas import AgentExecutionResult
 from app.api.dependencies import (
     get_evaluation_repository,
     get_evaluation_service,
+    get_retrieval_evaluator,
+    get_scenario_runner,
 )
-from app.api.schemas import EvaluationRunRequest
+from app.api.schemas import (
+    EvaluationRunRequest,
+    RetrievalEvaluationRunRequest,
+    ScenarioEvaluationRunRequest,
+)
 from app.evaluation.analysis import FailureAnalyzer
+from app.evaluation.retrieval_evaluator import RetrievalEvaluator
+from app.evaluation.retrieval_schemas import RetrievalBatchReport
+from app.evaluation.scenario_runner import ScenarioRunner
 from app.evaluation.schemas import (
     BatchEvaluationReport,
     EvaluationServiceResult,
     FailureAnalysisReport,
 )
-from fastapi import Query
+from app.evaluation.service import EvaluationService
 from app.monitoring.diagnostics import (
     AgentReliabilityDiagnostics,
     RunDiagnosticsReport,
 )
-from app.evaluation.service import EvaluationService
 from app.storage.repository import EvaluationHistoryRepository
-from app.storage.schemas import StoredEvaluationRun
+from app.storage.schemas import (
+    StoredEvaluationRun,
+    StoredExecutionTrace,
+)
 
 
 router = APIRouter(
@@ -136,9 +141,7 @@ def analyze_evaluation_run(
         reports=stored_run.reports,
     )
 
-    analyzer = FailureAnalyzer()
-
-    return analyzer.analyze(batch_report)
+    return FailureAnalyzer().analyze(batch_report)
 
 
 @router.post(
@@ -181,6 +184,41 @@ def run_scenario_evaluation(
         ) from exc
 
 
+@router.post(
+    "/retrieval/run",
+    response_model=RetrievalBatchReport,
+)
+def run_retrieval_evaluation(
+    request: RetrievalEvaluationRunRequest,
+    scenario_runner: Annotated[
+        ScenarioRunner,
+        Depends(get_scenario_runner),
+    ],
+    evaluator: Annotated[
+        RetrievalEvaluator,
+        Depends(get_retrieval_evaluator),
+    ],
+):
+    """Execute scenarios and evaluate their retrieved evidence."""
+
+    try:
+        results_by_case_id = scenario_runner.run(
+            request.scenarios
+        )
+
+        return evaluator.evaluate_batch(
+            scenarios=request.scenarios,
+            results_by_case_id=results_by_case_id,
+            k=request.k,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+
 @router.get(
     "/{run_id}/traces",
     response_model=list[StoredExecutionTrace],
@@ -210,14 +248,18 @@ def list_execution_traces(
 
 
 @router.get(
-    "/evaluations/{run_id}/diagnostics",
+    "/{run_id}/diagnostics",
     response_model=RunDiagnosticsReport,
 )
 def get_evaluation_diagnostics(
     run_id: str,
     slow_threshold_ms: float = Query(default=1000.0, gt=0),
-    repository=Depends(get_evaluation_repository),
+    repository: EvaluationHistoryRepository = Depends(
+        get_evaluation_repository
+    ),
 ):
+    """Analyze execution reliability for a stored evaluation run."""
+
     run = repository.get(run_id)
 
     if run is None:
@@ -228,9 +270,7 @@ def get_evaluation_diagnostics(
 
     traces = repository.list_traces(run_id)
 
-    diagnostics = AgentReliabilityDiagnostics()
-
-    return diagnostics.analyze(
+    return AgentReliabilityDiagnostics().analyze(
         run_id=run_id,
         traces=traces,
         slow_threshold_ms=slow_threshold_ms,
