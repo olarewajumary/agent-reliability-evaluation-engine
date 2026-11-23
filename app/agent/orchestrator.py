@@ -20,7 +20,6 @@ class AgentOrchestrator:
         registry: ToolRegistry | None = None,
         max_steps: int = 5,
     ) -> None:
-
         self.recorder = recorder
         self.planner = planner
         self.registry = registry
@@ -32,6 +31,38 @@ class AgentOrchestrator:
             else None
         )
 
+    @staticmethod
+    def _returned_no_results(result: dict) -> bool:
+        """Identify explicit empty search results without guessing."""
+
+        output = result.get("output")
+
+        if not isinstance(output, dict):
+            return False
+
+        count = output.get("count")
+
+        if isinstance(count, int) and not isinstance(count, bool):
+            return count == 0
+
+        result_fields = (
+            "messages",
+            "issues",
+            "results",
+            "items",
+            "documents",
+            "records",
+        )
+
+        for field in result_fields:
+            value = output.get(field)
+
+            if isinstance(value, list):
+                return len(value) == 0
+
+        # Unknown output structures are not assumed to be empty.
+        return False
+
     def execute(
         self,
         task: AgentTask,
@@ -42,7 +73,6 @@ class AgentOrchestrator:
         plan: ExecutionPlan | None = None
 
         if tool_requests is None:
-
             if (
                 self.planner is None
                 or self.registry is None
@@ -72,7 +102,6 @@ class AgentOrchestrator:
         collected_results = []
 
         for request in tool_requests:
-
             result, trace = self.recorder.execute(request)
 
             collected_results.append(
@@ -85,9 +114,8 @@ class AgentOrchestrator:
             if result.status == ToolStatus.REQUIRES_APPROVAL:
                 break
 
-            # For planner-generated plans, stop if an earlier action fails.
-            # Preserve the existing scenario runner's explicit-request
-            # behaviour for backward compatibility.
+            # Stop planner-generated execution after a failure.
+            # Explicit scenario requests retain their existing behaviour.
             if (
                 plan is not None
                 and result.status == ToolStatus.FAILURE
@@ -104,6 +132,19 @@ class AgentOrchestrator:
 
         elif ToolStatus.FAILURE.value in statuses:
             overall_status = "failed"
+
+        elif (
+            collected_results
+            and all(
+                status == ToolStatus.SUCCESS.value
+                for status in statuses
+            )
+            and all(
+                self._returned_no_results(item["result"])
+                for item in collected_results
+            )
+        ):
+            overall_status = "no_results"
 
         else:
             overall_status = "completed"

@@ -45,11 +45,31 @@ class FailingTool(BaseTool):
         raise RuntimeError("Simulated tool failure.")
 
 
+class EmptySearchTool(BaseTool):
+    """Simulate a successful search with no matching evidence."""
+
+    @property
+    def name(self) -> str:
+        return "empty_search"
+
+    @property
+    def description(self) -> str:
+        return "Search and return no matching records."
+
+    def execute(self, arguments: dict) -> dict:
+        return {
+            "query": arguments.get("query"),
+            "count": 0,
+            "results": [],
+        }
+
+
 @pytest.fixture
 def setup_orchestrator():
     registry = ToolRegistry()
     registry.register(MockGitHubTool())
     registry.register(FailingTool())
+    registry.register(EmptySearchTool())
 
     executor = ToolExecutor(registry)
 
@@ -68,6 +88,14 @@ def setup_orchestrator():
             tool_name="failing_tool",
             decision=PolicyDecision.ALLOW,
             reason="This tool is permitted for testing.",
+        )
+    )
+
+    policy_engine.register_policy(
+        ToolPolicy(
+            tool_name="empty_search",
+            decision=PolicyDecision.ALLOW,
+            reason="Empty search is permitted for testing.",
         )
     )
 
@@ -142,37 +170,6 @@ def test_orchestrator_records_failed_tool_execution(setup_orchestrator):
 
     assert result.status == "failed"
     assert result.tool_results[0]["result"]["status"] == "failure"
-    assert len(recorder.get_traces()) == 1
-
-
-def test_orchestrator_handles_approval_required_action(setup_orchestrator):
-    orchestrator, recorder = setup_orchestrator
-
-    recorder.executor.executor.policy_engine.register_policy(
-        ToolPolicy(
-            tool_name="approval_tool",
-            decision=PolicyDecision.REQUIRE_APPROVAL,
-            reason="Human approval is required.",
-        )
-    )
-
-    task = AgentTask(
-        objective="Perform an action requiring approval."
-    )
-
-    # The tool does not need to be registered because the policy
-    # enforcer should stop execution before the executor is called.
-    requests = [
-        ToolRequest(tool_name="approval_tool")
-    ]
-
-    result = orchestrator.execute(task, requests)
-
-    assert result.status == "requires_approval"
-    assert (
-        result.tool_results[0]["result"]["status"]
-        == "requires_approval"
-    )
     assert len(recorder.get_traces()) == 1
 
 
@@ -289,3 +286,65 @@ def test_orchestrator_stops_after_approval_is_required(
         result.tool_results[0]["result"]["status"]
         == "requires_approval"
     )
+
+
+def test_orchestrator_reports_no_results(setup_orchestrator):
+    orchestrator, recorder = setup_orchestrator
+
+    task = AgentTask(
+        objective="Find checkout failures."
+    )
+
+    result = orchestrator.execute(
+        task,
+        [
+            ToolRequest(
+                tool_name="empty_search",
+                arguments={"query": "checkout"},
+            )
+        ],
+    )
+
+    assert result.status == "no_results"
+    assert result.message == "Agent task finished with status: no_results."
+    assert len(result.tool_results) == 1
+    assert result.tool_results[0]["result"]["status"] == "success"
+    assert result.tool_results[0]["result"]["output"]["count"] == 0
+    assert len(recorder.get_traces()) == 1
+
+
+def test_orchestrator_reports_completed_when_one_search_has_results(
+    setup_orchestrator,
+):
+    orchestrator, recorder = setup_orchestrator
+
+    task = AgentTask(
+        objective="Investigate checkout failures."
+    )
+
+    result = orchestrator.execute(
+        task,
+        [
+            ToolRequest(
+                tool_name="empty_search",
+                arguments={"query": "checkout"},
+            ),
+            ToolRequest(
+                tool_name="github_search",
+                arguments={"query": "checkout"},
+            ),
+        ],
+    )
+
+    assert result.status == "completed"
+    assert len(result.tool_results) == 2
+
+    assert (
+        result.tool_results[0]["result"]["output"]["count"] == 0
+    )
+
+    assert (
+        result.tool_results[1]["result"]["output"]["issues_found"] == 3
+    )
+
+    assert len(recorder.get_traces()) == 2
