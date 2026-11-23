@@ -10,6 +10,17 @@ class SlackSearchTool(BaseTool):
     name = "slack_search"
     description = "Search simulated Slack messages."
 
+    @property
+    def argument_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        }
+
     def __init__(self) -> None:
         self.messages = [
             {
@@ -56,6 +67,17 @@ class GitHubSearchTool(BaseTool):
 
     name = "github_search"
     description = "Search simulated GitHub issues."
+
+    @property
+    def argument_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        }
 
     def __init__(self) -> None:
         self.issues = [
@@ -105,6 +127,18 @@ class CreateTicketTool(BaseTool):
 
     name = "create_ticket"
     description = "Create a ticket in a simulated Linear workspace."
+
+    @property
+    def argument_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+            },
+            "required": ["title", "description"],
+            "additionalProperties": False,
+        }
 
     def execute(self, arguments: dict[str, Any]) -> dict[str, Any]:
         title = arguments.get("title")

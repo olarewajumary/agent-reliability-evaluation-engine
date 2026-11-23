@@ -2,15 +2,15 @@ from datetime import datetime, timezone
 from time import perf_counter
 
 from app.monitoring.schemas import ExecutionTrace
-from app.tools.executor import ToolExecutor
+from app.policies.enforcer import PolicyEnforcer
 from app.tools.schemas import ToolRequest, ToolResult
 
 
 class TraceRecorder:
-    """Execute tools and record their execution traces."""
+    """Execute tools through policy enforcement and record traces."""
 
-    def __init__(self, executor: ToolExecutor) -> None:
-        self.executor = executor
+    def __init__(self, enforcer: PolicyEnforcer) -> None:
+        self.enforcer = enforcer
         self._traces: list[ExecutionTrace] = []
 
     def execute(
@@ -21,7 +21,7 @@ class TraceRecorder:
         started_at = datetime.now(timezone.utc)
         start_counter = perf_counter()
 
-        result = self.executor.execute(request)
+        result = self.enforcer.execute(request)
 
         finish_counter = perf_counter()
         finished_at = datetime.now(timezone.utc)
@@ -48,3 +48,9 @@ class TraceRecorder:
 
     def get_traces(self) -> list[ExecutionTrace]:
         return list(self._traces)
+
+
+    @property
+    def executor(self) -> PolicyEnforcer:
+        """Expose the policy-controlled execution gateway."""
+        return self.enforcer

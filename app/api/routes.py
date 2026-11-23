@@ -2,6 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.agent.orchestrator import AgentOrchestrator
+from app.agent.planner import PlanningError
+from app.agent.schemas import AgentExecutionResult, AgentTask, AgentTaskRequest
+from app.api.dependencies import get_agent_orchestrator
+
 from app.api.dependencies import (
     get_evaluation_repository,
     get_evaluation_service,
@@ -275,3 +280,37 @@ def get_evaluation_diagnostics(
         traces=traces,
         slow_threshold_ms=slow_threshold_ms,
     )
+
+
+@router.post(
+    "/agent/run",
+    response_model=AgentExecutionResult,
+)
+def run_agent_task(
+    request: AgentTaskRequest,
+    orchestrator: Annotated[
+        AgentOrchestrator,
+        Depends(get_agent_orchestrator),
+    ],
+):
+    """Plan and execute an agent task using the configured LLM."""
+
+    task = AgentTask(
+        objective=request.objective,
+        context=request.context,
+    )
+
+    try:
+        return orchestrator.execute(task)
+
+    except PlanningError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc),
+        ) from exc
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
