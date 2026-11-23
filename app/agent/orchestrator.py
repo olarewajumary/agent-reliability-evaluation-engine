@@ -32,8 +32,14 @@ class AgentOrchestrator:
         )
 
     @staticmethod
-    def _returned_no_results(result: dict) -> bool:
+    def _returned_no_results(
+        result: dict,
+        tool_name: str,
+    ) -> bool:
         """Identify explicit empty search results without guessing."""
+
+        if not tool_name.endswith("_search"):
+            return False
 
         output = result.get("output")
 
@@ -60,7 +66,6 @@ class AgentOrchestrator:
             if isinstance(value, list):
                 return len(value) == 0
 
-        # Unknown output structures are not assumed to be empty.
         return False
 
     def execute(
@@ -106,6 +111,7 @@ class AgentOrchestrator:
 
             collected_results.append(
                 {
+                    "tool_name": request.tool_name,
                     "result": result.model_dump(mode="json"),
                     "trace": trace.model_dump(mode="json"),
                 }
@@ -140,7 +146,10 @@ class AgentOrchestrator:
                 for status in statuses
             )
             and all(
-                self._returned_no_results(item["result"])
+                self._returned_no_results(
+                    item["result"],
+                    item["tool_name"],
+                )
                 for item in collected_results
             )
         ):
