@@ -1,7 +1,61 @@
-
+import re
 from typing import Any
 
 from app.tools.registry import BaseTool
+
+
+# These terms represent failure indicators in the simulated dataset.
+FAILURE_TERMS = {
+    "fail",
+    "fails",
+    "failed",
+    "failing",
+    "failure",
+    "failures",
+    "error",
+    "errors",
+    "502",
+}
+
+STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "of",
+    "on",
+    "the",
+    "to",
+    "was",
+    "were",
+    "with",
+}
+
+
+def normalize_search_text(value: str) -> set[str]:
+    """Normalize text into searchable concepts."""
+    tokens = re.findall(r"[a-z0-9]+", value.casefold())
+
+    return {
+        "failure" if token in FAILURE_TERMS else token
+        for token in tokens
+        if token not in STOP_WORDS
+    }
+
+
+def matches_search_query(query: str, searchable_text: str) -> bool:
+    """Require every normalized query concept to match."""
+    query_terms = normalize_search_text(query)
+    record_terms = normalize_search_text(searchable_text)
+
+    return bool(query_terms) and query_terms.issubset(record_terms)
 
 
 class SlackSearchTool(BaseTool):
@@ -52,7 +106,7 @@ class SlackSearchTool(BaseTool):
         matches = [
             message
             for message in self.messages
-            if query.casefold() in message["text"].casefold()
+            if matches_search_query(query, message["text"])
         ]
 
         return {
@@ -110,9 +164,10 @@ class GitHubSearchTool(BaseTool):
         matches = [
             issue
             for issue in self.issues
-            if query.casefold() in (
-                issue["title"] + " " + issue["body"]
-            ).casefold()
+            if matches_search_query(
+                query,
+                issue["title"] + " " + issue["body"],
+            )
         ]
 
         return {

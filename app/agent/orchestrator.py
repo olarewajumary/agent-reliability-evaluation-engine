@@ -1,5 +1,10 @@
+from app.agent.evidence import EvidenceAggregator
 from app.agent.plan_validator import PlanValidator
 from app.agent.planner import Planner
+from app.agent.response_generator import (
+    CitationValidator,
+    OllamaResponseGenerator,
+)
 from app.agent.schemas import (
     AgentExecutionResult,
     AgentTask,
@@ -11,7 +16,7 @@ from app.tools.schemas import ToolRequest, ToolStatus
 
 
 class AgentOrchestrator:
-    """Coordinate planning, validation and safe tool execution."""
+    """Coordinate planning, safe execution and evidence-grounded responses."""
 
     def __init__(
         self,
@@ -19,11 +24,16 @@ class AgentOrchestrator:
         planner: Planner | None = None,
         registry: ToolRegistry | None = None,
         max_steps: int = 5,
+        response_generator: OllamaResponseGenerator | None = None,
     ) -> None:
         self.recorder = recorder
         self.planner = planner
         self.registry = registry
         self.max_steps = max_steps
+        self.response_generator = response_generator
+
+        self.evidence_aggregator = EvidenceAggregator()
+        self.citation_validator = CitationValidator()
 
         self.plan_validator = (
             PlanValidator(registry, max_steps)
@@ -67,6 +77,81 @@ class AgentOrchestrator:
                 return len(value) == 0
 
         return False
+
+    def _build_final_answer(
+        self,
+        task: AgentTask,
+        tool_results: list[dict],
+        status: str,
+    ) -> tuple[list, str | None, list[str], str]:
+        """Aggregate evidence and generate a validated answer when possible."""
+
+        evidence = self.evidence_aggregator.aggregate(tool_results)
+
+        if status in {"failed", "requires_approval"}:
+            return evidence, None, [], "not_generated"
+
+        if not evidence:
+            if status == "no_results":
+                answer = (
+                    "The search completed successfully, but no matching "
+                    "records were found. There is not enough retrieved "
+                    "evidence to answer the objective."
+                )
+            else:
+                answer = (
+                    "No usable evidence was returned by the executed tools. "
+                    "I cannot provide an evidence-grounded answer."
+                )
+
+            return evidence, answer, [], "no_evidence"
+
+        if self.response_generator is None:
+            return evidence, None, [], "not_configured"
+
+        try:
+            generated = self.response_generator.generate(
+                objective=task.objective,
+                evidence=evidence,
+            )
+
+        except Exception:
+            # A response-generation failure must not erase successful
+            # tool execution or change the underlying execution status.
+            return (
+                evidence,
+                "Evidence was retrieved, but the final response could "
+                "not be generated. The retrieved evidence is available "
+                "for inspection.",
+                [],
+                "generation_failed",
+            )
+
+        is_valid = self.citation_validator.validate(
+            answer=generated,
+            evidence=evidence,
+        )
+
+        if not is_valid:
+            return (
+                evidence,
+                "Evidence was retrieved, but the generated response "
+                "did not contain valid references to the retrieved "
+                "evidence. No grounded answer is being presented.",
+                [],
+                "invalid_citations",
+            )
+
+        citations = generated.citations
+
+        citation_text = " ".join(
+            f"[{citation}]"
+            for citation in citations
+        )
+
+        final_answer = f"{generated.answer}\n\nSources: {citation_text}"
+
+        return evidence, final_answer, citations, "generated"
 
     def execute(
         self,
@@ -158,6 +243,17 @@ class AgentOrchestrator:
         else:
             overall_status = "completed"
 
+        (
+            evidence,
+            final_answer,
+            cited_evidence_ids,
+            response_status,
+        ) = self._build_final_answer(
+            task=task,
+            tool_results=collected_results,
+            status=overall_status,
+        )
+
         return AgentExecutionResult(
             task_id=task.task_id,
             status=overall_status,
@@ -166,4 +262,8 @@ class AgentOrchestrator:
             message=(
                 f"Agent task finished with status: {overall_status}."
             ),
+            evidence=evidence,
+            final_answer=final_answer,
+            cited_evidence_ids=cited_evidence_ids,
+            response_status=response_status,
         )

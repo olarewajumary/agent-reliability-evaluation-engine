@@ -9,6 +9,7 @@ from pydantic import (
     field_validator,
 )
 
+
 class AgentTaskRequest(BaseModel):
     """Validate a task submitted to the agent."""
 
@@ -18,7 +19,6 @@ class AgentTaskRequest(BaseModel):
         min_length=1,
         max_length=2000,
     )
-
     context: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("objective")
@@ -31,23 +31,22 @@ class AgentTaskRequest(BaseModel):
 
         return normalized
 
+
 class AgentTask(BaseModel):
     """Represent a validated task inside the application."""
 
     model_config = ConfigDict(extra="forbid")
 
     task_id: UUID = Field(default_factory=uuid4)
-
     objective: str = Field(
         min_length=1,
         max_length=2000,
     )
-
     context: dict[str, Any] = Field(default_factory=dict)
-
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+
 
 class PlannedAction(BaseModel):
     """A single action proposed by the agent planner."""
@@ -67,6 +66,7 @@ class PlannedAction(BaseModel):
 
         return normalized
 
+
 class ExecutionPlan(BaseModel):
     """A structured plan proposed for an agent task."""
 
@@ -85,13 +85,44 @@ class ExecutionPlan(BaseModel):
 
         return normalized
 
+
+class EvidenceItem(BaseModel):
+    """Represent an attributable piece of retrieved evidence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_id: str = Field(min_length=1)
+    tool_name: str = Field(min_length=1)
+    source_id: str | None = None
+    content: str = Field(min_length=1)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class GeneratedAnswer(BaseModel):
+    """Represent an LLM-generated answer and its evidence references."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(min_length=1)
+    citations: list[str] = Field(default_factory=list)
+
+    @field_validator("answer")
+    @classmethod
+    def answer_must_not_be_blank(cls, value: str) -> str:
+        normalized = value.strip()
+
+        if not normalized:
+            raise ValueError("Generated answer must not be blank.")
+
+        return normalized
+
+
 class AgentExecutionResult(BaseModel):
     """Represent the outcome of an agent task execution."""
 
     model_config = ConfigDict(extra="forbid")
 
     task_id: UUID
-
     status: str = Field(min_length=1)
 
     tool_results: list[dict[str, Any]] = Field(
@@ -99,10 +130,14 @@ class AgentExecutionResult(BaseModel):
     )
 
     plan: ExecutionPlan | None = None
-
     message: str = Field(min_length=1)
 
-    @field_validator("status", "message")
+    evidence: list[EvidenceItem] = Field(default_factory=list)
+    final_answer: str | None = None
+    cited_evidence_ids: list[str] = Field(default_factory=list)
+    response_status: str = "not_generated"
+
+    @field_validator("status", "message", "response_status")
     @classmethod
     def values_must_not_be_blank(cls, value: str) -> str:
         normalized = value.strip()

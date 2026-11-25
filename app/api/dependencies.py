@@ -31,6 +31,8 @@ from app.agent.planner import (
     OpenAIPlanner,
 )
 
+from app.agent.response_generator import OllamaResponseGenerator
+
 load_dotenv()
 
 
@@ -117,7 +119,7 @@ def get_scenario_runner() -> ScenarioRunner:
 
 
 def get_agent_orchestrator() -> AgentOrchestrator:
-    """Build the agent execution pipeline using the selected planner."""
+    """Build the agent pipeline using the selected planner and responder."""
 
     provider = os.getenv(
         "PLANNER_PROVIDER",
@@ -139,6 +141,8 @@ def get_agent_orchestrator() -> AgentOrchestrator:
             detail="AGENT_MAX_STEPS must be between 1 and 10.",
         )
 
+    response_generator = None
+
     if provider == "ollama":
         try:
             ollama_timeout = int(
@@ -156,9 +160,25 @@ def get_agent_orchestrator() -> AgentOrchestrator:
                 detail="OLLAMA_TIMEOUT_SECONDS must be greater than zero.",
             )
 
+        ollama_model = os.getenv(
+            "OLLAMA_MODEL",
+            "llama3.2:3b",
+        )
+
+        ollama_base_url = os.getenv(
+            "OLLAMA_BASE_URL",
+            "http://localhost:11434",
+        )
+
         planner = OllamaPlanner(
-            model=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
-            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+            model=ollama_model,
+            base_url=ollama_base_url,
+            timeout=ollama_timeout,
+        )
+
+        response_generator = OllamaResponseGenerator(
+            model=ollama_model,
+            base_url=ollama_base_url,
             timeout=ollama_timeout,
         )
 
@@ -198,6 +218,7 @@ def get_agent_orchestrator() -> AgentOrchestrator:
         planner=planner,
         registry=registry,
         max_steps=max_steps,
+        response_generator=response_generator,
     )
 
 

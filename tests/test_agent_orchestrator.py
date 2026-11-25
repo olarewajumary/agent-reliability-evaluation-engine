@@ -3,6 +3,7 @@ import pytest
 
 from app.agent.orchestrator import AgentOrchestrator
 from app.agent.schemas import AgentTask
+from app.agent.schemas import EvidenceItem, GeneratedAnswer
 from app.monitoring.recorder import TraceRecorder
 from app.policies.engine import PolicyEngine
 from app.policies.enforcer import PolicyEnforcer
@@ -64,12 +65,68 @@ class EmptySearchTool(BaseTool):
         }
 
 
+class EvidenceSearchTool(BaseTool):
+    """Return a sample record that can be used as evidence."""
+
+    @property
+    def name(self) -> str:
+        return "evidence_search"
+
+    @property
+    def description(self) -> str:
+        return "Search and return a sample evidence record."
+
+    def execute(self, arguments: dict) -> dict:
+        return {
+            "query": arguments.get("query"),
+            "count": 1,
+            "results": [
+                {
+                    "id": "record-001",
+                    "title": "Checkout API failure",
+                    "body": "The checkout endpoint returns a 502 error.",
+                }
+            ],
+        }
+
+
+class FakeResponseGenerator:
+    """Provide predictable responses without calling an LLM."""
+
+    def generate(self, objective, evidence):
+        return GeneratedAnswer(
+            answer=(
+                "The retrieved record reports a 502 error "
+                "from the checkout endpoint."
+            ),
+            citations=["evidence-001"],
+        )
+
+
+class InvalidCitationGenerator:
+    """Simulate a model returning an unknown evidence reference."""
+
+    def generate(self, objective, evidence):
+        return GeneratedAnswer(
+            answer="The checkout system is unavailable.",
+            citations=["evidence-999"],
+        )
+
+
+class FailingResponseGenerator:
+    """Simulate a response-generation failure."""
+
+    def generate(self, objective, evidence):
+        raise RuntimeError("Simulated generation failure.")
+
+
 @pytest.fixture
 def setup_orchestrator():
     registry = ToolRegistry()
     registry.register(MockGitHubTool())
     registry.register(FailingTool())
     registry.register(EmptySearchTool())
+    registry.register(EvidenceSearchTool())
 
     executor = ToolExecutor(registry)
 
@@ -96,6 +153,14 @@ def setup_orchestrator():
             tool_name="empty_search",
             decision=PolicyDecision.ALLOW,
             reason="Empty search is permitted for testing.",
+        )
+    )
+
+    policy_engine.register_policy(
+        ToolPolicy(
+            tool_name="evidence_search",
+            decision=PolicyDecision.ALLOW,
+            reason="Evidence search is permitted for testing.",
         )
     )
 
@@ -348,3 +413,91 @@ def test_orchestrator_reports_completed_when_one_search_has_results(
     )
 
     assert len(recorder.get_traces()) == 2
+
+
+def test_orchestrator_generates_answer_with_valid_citations(
+    setup_orchestrator,
+):
+    orchestrator, recorder = setup_orchestrator
+
+    orchestrator.response_generator = FakeResponseGenerator()
+
+    task = AgentTask(
+        objective="Investigate the checkout API failure."
+    )
+
+    result = orchestrator.execute(
+        task,
+        [
+            ToolRequest(
+                tool_name="evidence_search",
+                arguments={"query": "checkout"},
+            )
+        ],
+    )
+
+    assert result.status == "completed"
+    assert result.response_status == "generated"
+
+    assert len(result.evidence) == 1
+    assert result.evidence[0].source_id == "record-001"
+
+    assert result.final_answer is not None
+    assert "502 error" in result.final_answer
+    assert "[evidence-001]" in result.final_answer
+
+    assert result.cited_evidence_ids == ["evidence-001"]
+    assert len(recorder.get_traces()) == 1
+
+
+def test_orchestrator_rejects_unknown_citations(setup_orchestrator):
+    orchestrator, _ = setup_orchestrator
+
+    orchestrator.response_generator = InvalidCitationGenerator()
+
+    task = AgentTask(
+        objective="Investigate the checkout API failure."
+    )
+
+    result = orchestrator.execute(
+        task,
+        [
+            ToolRequest(
+                tool_name="evidence_search",
+                arguments={"query": "checkout"},
+            )
+        ],
+    )
+
+    assert result.status == "completed"
+    assert result.response_status == "invalid_citations"
+    assert result.cited_evidence_ids == []
+    assert "No grounded answer" in result.final_answer
+
+
+def test_orchestrator_preserves_evidence_when_generation_fails(
+    setup_orchestrator,
+):
+    orchestrator, _ = setup_orchestrator
+
+    orchestrator.response_generator = FailingResponseGenerator()
+
+    task = AgentTask(
+        objective="Investigate the checkout API failure."
+    )
+
+    result = orchestrator.execute(
+        task,
+        [
+            ToolRequest(
+                tool_name="evidence_search",
+                arguments={"query": "checkout"},
+            )
+        ],
+    )
+
+    assert result.status == "completed"
+    assert result.response_status == "generation_failed"
+    assert len(result.evidence) == 1
+    assert result.final_answer is not None
+    assert "could not be generated" in result.final_answer
